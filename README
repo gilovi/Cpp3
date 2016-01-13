@@ -1,0 +1,60 @@
+ex3 - Generic Matrix 
+gilovi
+
+submitted files:
+========
+Matrix.hpp, MatrixException.hpp, NonSquareMatrixException.hpp, DimensionsMismatchException.hpp, README 
+
+
+exeption hirarchy:
+=========
+The general hirarchy looks like this:
+
+                                             -----------------
+                                         |  
+                                         |  MatrixException.hpp |
+                                              -----------------
+                    /                                                         \
+              NonSquareMatrixException.hpp                          DimensionsMismatchException.hpp
+
+
+paralel timing:
+===============
+-------------------------------------------------------------------------------------
+            |               big                |              small                 |
+            |     *          |         +       |      *          |          +       |
+sequential: |  10.3017sec    |    0.0112708sec | 6.96e-07sec     |  5.76e-07sec     |
+            |                |                 |                 |                  |
+paralel:    |  2.40472sec    |   0.0200851sec  | 5.228e-05sec    |  0.000106985sec  |
+-------------------------------------------------------------------------------------
+
+
+
+Answers to questions:
+=====================
+i.
+There is a differance. between the sets. as we can see, in the small input 
+the sequential did better in few orders of magnitiude. this is probably
+due to the thraeding overhead that is more significant in this case then the time it could save.
+
+On the other hand, at the big input we get much better results for the paralel "*". this is 
+because the "*" has 'heavy' loop calculations for large scale input,
+so the overhead of threading is much smaller then its gain.
+
+As we can see, in both big and small inputs, the "+" was better in the sequential sol.
+this is because the optimization from paralel calc is neglectible when comparing to the
+one loop in the sequential "+". so the overhead of threading is taking
+the major place.
+
+
+ii.
+There is  also a differance between "+" and "*" because "*" is much heavier
+on calculations (3 loops.. vs 1). 
+Obviously, the gain from paralel calculation 
+could be much more significant in that case, and this is the reason for
+better timings in this case.
+
+
+
+
+

@@ -5,6 +5,7 @@
 #ifndef CPP3_MATRIX_HPP
 #define CPP3_MATRIX_HPP
 
+#include <iostream>
 #include <vector>
 #include <iterator>
 #include <stdexcept>
@@ -21,7 +22,7 @@
 #define OUT_OF_RANGE_MSG "index is outside the matrix's range"
 #define PARALEL_MSG "Generic Matrix mode changed to parallel mode."
 #define NON_PARALEL_MSG "Generic Matrix mode changed to non-parallel mode."
-
+static std::mutex _mut;
 
 /**
 * Generic matrix class.
@@ -112,16 +113,16 @@ public:
         {
             throw DimensionsMismatchException("+");
         }
-        Matrix<T> result(this->_rows , this->_cols);
+        Matrix<T> resultMat(this->_rows , this->_cols);
         if(s_isParalelMode)
         {
             //each row will run in it's own thread
-            std::vector<std::thread> threads(this->_rows-1);
+            std::vector<std::thread> threads(this->_rows);
             for (unsigned int i = 0 ; i < this->_rows; i++ )
             {
-                threads[i] = std::thread(paralelAddition, std::ref(*this), std::ref(rhs), i, std::ref(result));
+                threads[i] = std::thread(paralelAddition, std::ref(*this), std::ref(rhs), i, std::ref(resultMat));
             }
-            for (int i = 0; i < threads.size(); i++)
+            for (unsigned int i = 0; i < threads.size(); i++)
             {
                 threads[i].join();
             }
@@ -130,12 +131,12 @@ public:
         }
         else
         {
-            for (int i = 0 ; i < this->size() ; i++)
+            for (unsigned int i = 0 ; i < this->size() ; i++)
             {
-                result._matrix[i] = this->_matrix[i] + rhs._matrix[i];
+                resultMat._matrix[i] = this->_matrix[i] + rhs._matrix[i];
             }
         }
-        return result;
+        return resultMat;
     }
 
     /**
@@ -189,7 +190,16 @@ public:
         }
         else
         {
-            //TODO paralel mode
+            //each row will run in it's own thread
+            std::vector<std::thread> threads(this->_rows);
+            for (unsigned int i = 0 ; i < this->_rows ; i++ )
+            {
+                threads[i] = std::thread(paralelMult, std::ref(*this), std::ref(rhs), i, std::ref(resultMat));
+            }
+            for (unsigned int i = 0; i < threads.size(); i++)
+            {
+                threads[i].join();
+            }
         }
         return resultMat;
     }
@@ -202,7 +212,7 @@ public:
     {
         if (this->_rows == rhs._rows && this->_cols == rhs._cols)
         {
-            for (int i = 0 ; i < this->size() ; i++)
+            for (unsigned int i = 0 ; i < this->size() ; i++)
             {
                 if (this->_matrix[i] != rhs._matrix[i])
                 {
@@ -250,7 +260,7 @@ public:
 
     T trace() const
     {
-        if (not(isSquare()))
+        if (not(isSquareMatrix()))
         {
             throw NonSquareMatrixException("trace");
         }
@@ -353,13 +363,21 @@ public:
 
     }
 
+    /**
+    * A Function that check if matrix is square or not.
+    * @return true if square matrix.
+    */
+    bool isSquareMatrix() const
+    {
+        return this->_rows == this->_cols;
+    }
+
 
 private:
     unsigned int _rows;
     unsigned int _cols;
     std::vector<T> _matrix;
     static bool s_isParalelMode;
-    std::mutex _mut;
 
 
     static int getIndex(unsigned int matCols , unsigned int row,  unsigned int col)
@@ -367,21 +385,13 @@ private:
         return (row * matCols) + col;
     }
 
-    /**
-    * A Function that check if matrix is square or not.
-    * @return true if square matrix.
-    */
-    const bool isSquare() const
-    {
-        return this->_rows == this->_cols;
-    }
+    static void paralelAddition(const Matrix<T>& lhs, const Matrix<T>& rhs , int row , Matrix<T>& resMat ) {
 
-    static void paralelAddition(const Matrix<T>& lhs, const Matrix<T>& rhs , int row , Matrix<T>& resMat )
-    {
-        for (int i = getIndex(lhs._cols, row, 0); i < getIndex(lhs._cols, row,resMat._cols); i++)
+        for (unsigned int i = 0 ; i < resMat._cols ; i++)
         {
-            resMat(row,i) = lhs(row,i) + rhs(row,i);
+            resMat(row, i) = lhs(row, i) + rhs(row, i);
         }
+
     }
 
     static void paralelMult(const Matrix<T>& lhs, const Matrix<T>& rhs , int row , Matrix<T>& resMat )
@@ -389,10 +399,13 @@ private:
 
         for (unsigned int j = 0; j < resMat._cols; j++) {
             T currSum = T(0);
-            for (unsigned int k = 0; k < lhs._cols; k++) {
+            for (unsigned int k = 0; k < lhs._cols; k++)
+            {
                 currSum += lhs(row, k) * (rhs)(k, j);
             }
+            //_mut.lock();
             resMat(row, j) = currSum;
+          // _mut.unlock();
         }
 
 
